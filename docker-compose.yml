@@ -1,0 +1,20 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: kindergarten-postgres
+    environment:
+      POSTGRES_DB: kindergarten
+      POSTGRES_USER: kindergarten
+      POSTGRES_PASSWORD: kindergarten
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kindergarten -d kindergarten"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pgdata:

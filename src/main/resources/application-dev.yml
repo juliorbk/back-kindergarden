@@ -1,0 +1,10 @@
+spring:
+  jpa:
+    show-sql: true
+
+app:
+  seed:
+    enabled: true
+    admin-email: ${SEED_ADMIN_EMAIL:admin@ueclca.edu.ve}
+    admin-password: ${SEED_ADMIN_PASSWORD:admin1234}
+    admin-full-name: ${SEED_ADMIN_FULL_NAME:Administrador}

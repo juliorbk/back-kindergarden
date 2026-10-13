@@ -1,0 +1,12 @@
+spring:
+  jpa:
+    show-sql: false
+
+app:
+  security:
+    jwt:
+      issuer: back-kindergarten-test
+      secret: test-secret-test-secret-test-secret-1234567890
+      expiration-minutes: 30
+  seed:
+    enabled: false
