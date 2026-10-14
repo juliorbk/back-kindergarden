@@ -1,7 +1,9 @@
 package com.ueclca.backend.controllers;
 
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -93,5 +95,43 @@ class AuthApiIT extends AbstractIntegrationTest {
                                 {"email":"%s","password":"clave-incorrecta"}
                                 """.formatted(EMAIL)))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void changePasswordWithWrongCurrentPasswordReturnsBadRequest() throws Exception {
+        String token = authService.login(new LoginRequest(EMAIL, PASSWORD)).token();
+
+        mockMvc.perform(put("/api/v1/auth/password")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"currentPassword":"incorrecta","newPassword":"nuevaPassword123"}
+                                """))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void changePasswordReturnsNoContentAndLoginWorksWithNewPassword() throws Exception {
+        String email = "cambio.password@ueclca.edu.ve";
+        userRepository.findByEmail(email).ifPresent(userRepository::delete);
+        userRepository.save(User.builder()
+                .email(email)
+                .passwordHash(passwordEncoder.encode(PASSWORD))
+                .fullName("Cambio de contraseña")
+                .role(Role.EDITOR)
+                .enabled(true)
+                .build());
+
+        String token = authService.login(new LoginRequest(email, PASSWORD)).token();
+
+        mockMvc.perform(put("/api/v1/auth/password")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"currentPassword":"%s","newPassword":"nuevaPassword123"}
+                                """.formatted(PASSWORD)))
+                .andExpect(status().isNoContent());
+
+        assertNotNull(authService.login(new LoginRequest(email, "nuevaPassword123")));
     }
 }
