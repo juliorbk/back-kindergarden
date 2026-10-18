@@ -79,4 +79,13 @@ docker compose up -d                      # PostgreSQL local (dev)
 
 - `POST /api/v1/auth/login` → `{ token, tokenType, expiresInSeconds, user }`.
 - El front envía `Authorization: Bearer <token>` en el resto de endpoints.
+- Público (sin JWT, solo contenido publicado):
+  - `GET /api/v1/public/posts?page=&size=` → posts publicados, orden `publishedAt` DESC.
+  - `GET /api/v1/public/posts/{slug}` → 404 si el post no está publicado.
+  - `GET /api/v1/public/events?from=&to=` → eventos publicados que solapan el rango, orden `startsAt` ASC.
+- Panel (JWT con rol `ADMIN` o `EDITOR`): CRUD en `/api/v1/posts` y `/api/v1/events`;
+  publicar/despublicar con `PATCH /{id}/status` y body `{ "status": "DRAFT" | "PUBLISHED" }`.
+  `publishedAt` se fija en la primera publicación; el slug del post se autogenera del título y no cambia.
+- Categorías de eventos (`category`): `MEETING`, `CULTURAL`, `SPORTS`, `HOLIDAY`, `ACADEMIC`, `OTHER`
+  (el front decide etiqueta y color). `allDay` es opcional (por defecto `false`). Fechas en ISO-8601 UTC.
 - CORS permite `http://localhost:3000` por defecto (configurable con `CORS_ALLOWED_ORIGINS`).

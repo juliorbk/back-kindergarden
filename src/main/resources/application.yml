@@ -16,6 +16,10 @@ spring:
         format_sql: true
   flyway:
     locations: classpath:db/migration
+  data:
+    web:
+      pageable:
+        max-page-size: 50
 
 server:
   port: ${SERVER_PORT:8080}
