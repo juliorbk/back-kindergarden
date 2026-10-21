@@ -1,0 +1,76 @@
+// Esquema de base de datos — back-kindergarten (UEC Luisa Cáceres)
+// Generado a partir de las migraciones Flyway V1–V3 y las entidades JPA.
+
+Enum role {
+  ADMIN
+  EDITOR
+}
+
+Enum publication_status {
+  DRAFT
+  PUBLISHED
+}
+
+Enum event_category {
+  MEETING
+  CULTURAL
+  SPORTS
+  HOLIDAY
+  ACADEMIC
+  OTHER
+}
+
+Table users {
+  id            bigserial    [pk, increment]
+  email         varchar(255) [not null, unique, name: 'uk_users_email']
+  password_hash varchar(255) [not null]
+  full_name     varchar(150) [not null]
+  role          role         [not null, note: 'Rol del usuario en el panel']
+  enabled       boolean      [not null, default: true]
+  created_at    timestamptz  [not null, default: `NOW()`]
+  updated_at    timestamptz  [not null, default: `NOW()`]
+
+  Note: 'Usuarios del panel administrativo (ADMIN, EDITOR).'
+}
+
+Table posts {
+  id           bigserial         [pk, increment]
+  slug         varchar(255)      [not null, unique, name: 'uk_posts_slug']
+  title        varchar(200)      [not null]
+  caption      varchar(1000)     [not null]
+  image_url    varchar(500)      [not null]
+  status       publication_status [not null]
+  published_at timestamptz       [note: 'Se fija en la primera publicación']
+  author_id    bigint            [not null, ref: > users.id]
+  created_at   timestamptz       [not null, default: `NOW()`]
+  updated_at   timestamptz       [not null, default: `NOW()`]
+
+  indexes {
+    (status, published_at) [name: 'idx_posts_status_published_at', note: 'published_at DESC']
+  }
+
+  Note: 'Publicaciones del sitio; el slug se autogenera del título y no cambia.'
+}
+
+Table events {
+  id           bigserial          [pk, increment]
+  title        varchar(200)       [not null]
+  description  varchar(1000)
+  location     varchar(255)
+  category     event_category     [not null]
+  all_day      boolean            [not null, default: false]
+  starts_at    timestamptz        [not null]
+  ends_at      timestamptz        [not null]
+  status       publication_status [not null]
+  published_at timestamptz        [note: 'Se fija en la primera publicación']
+  created_by   bigint             [not null, ref: > users.id]
+  created_at   timestamptz        [not null, default: `NOW()`]
+  updated_at   timestamptz        [not null, default: `NOW()`]
+
+  indexes {
+    (status, starts_at) [name: 'idx_events_status_starts_at']
+    (starts_at, ends_at) [name: 'idx_events_range', note: 'Búsqueda de eventos que solapan un rango']
+  }
+
+  Note: 'Eventos institucionales. Restricción ck_events_period: ends_at >= starts_at.'
+}

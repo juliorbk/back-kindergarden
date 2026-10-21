@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -83,10 +84,12 @@ class UserApiIT extends AbstractIntegrationTest {
     }
 
     @Test
-    void listWithEditorTokenReturnsForbidden() throws Exception {
+    void listWithEditorTokenReturnsForbiddenProblemDetail() throws Exception {
         mockMvc.perform(get("/api/v1/users")
                         .header("Authorization", "Bearer " + tokenFor(EDITOR_EMAIL)))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isForbidden())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.title").value("Acceso denegado"));
     }
 
     @Test

@@ -27,9 +27,11 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 public class SecurityConfig {
 
     private final CorsProperties corsProperties;
+    private final SecurityProblemSupport securityProblemSupport;
 
-    public SecurityConfig(CorsProperties corsProperties) {
+    public SecurityConfig(CorsProperties corsProperties, SecurityProblemSupport securityProblemSupport) {
         this.corsProperties = corsProperties;
+        this.securityProblemSupport = securityProblemSupport;
     }
 
     @Bean
@@ -40,11 +42,18 @@ public class SecurityConfig {
             .sessionManagement((session) ->
                 session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
             )
+            .exceptionHandling((exceptions) ->
+                exceptions
+                    .authenticationEntryPoint(securityProblemSupport)
+                    .accessDeniedHandler(securityProblemSupport)
+            )
             .authorizeHttpRequests((auth) ->
                 auth
                     .requestMatchers(HttpMethod.POST, "/api/v1/auth/login")
                     .permitAll()
                     .requestMatchers(HttpMethod.GET, "/api/v1/public/**")
+                    .permitAll()
+                    .requestMatchers(HttpMethod.GET, "/api/v1/media/**")
                     .permitAll()
                     .requestMatchers("/actuator/health/**")
                     .permitAll()

@@ -1,6 +1,8 @@
 spring:
   application:
     name: back-kindergarten
+  config:
+    import: optional:file:.env[.properties]
   profiles:
     default: dev
   datasource:
@@ -16,6 +18,10 @@ spring:
         format_sql: true
   flyway:
     locations: classpath:db/migration
+  servlet:
+    multipart:
+      max-file-size: 55MB
+      max-request-size: 60MB
   data:
     web:
       pageable:
@@ -36,7 +42,11 @@ app:
   security:
     jwt:
       issuer: ${JWT_ISSUER:back-kindergarten-api}
-      secret: ${JWT_SECRET:dev-only-secret-change-me-0123456789abcdef0123456789abcdef}
+      secret: ${JWT_SECRET:}
       expiration-minutes: ${JWT_EXPIRATION_MINUTES:60}
   seed:
     enabled: false
+  media:
+    storage-path: ${MEDIA_STORAGE_PATH:./uploads}
+    public-base-url: ${MEDIA_PUBLIC_BASE_URL:http://localhost:8080}
+    max-file-size-bytes: ${MEDIA_MAX_FILE_SIZE_BYTES:52428800}

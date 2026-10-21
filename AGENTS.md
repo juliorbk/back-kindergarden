@@ -86,6 +86,14 @@ docker compose up -d                      # PostgreSQL local (dev)
 - Panel (JWT con rol `ADMIN` o `EDITOR`): CRUD en `/api/v1/posts` y `/api/v1/events`;
   publicar/despublicar con `PATCH /{id}/status` y body `{ "status": "DRAFT" | "PUBLISHED" }`.
   `publishedAt` se fija en la primera publicación; el slug del post se autogenera del título y no cambia.
+- Posts multi-canal: `POST /api/v1/posts` y `PUT /api/v1/posts/{id}` aceptan
+  `{ title?, caption, imageUrl?, mediaIds?, channels }`. `channels` es obligatorio
+  (`TELEGRAM`, `FACEBOOK`, `INSTAGRAM`); `mediaIds` referencia archivos subidos (máx. 10) y la primera
+  imagen es la portada. `title` es opcional (se deriva del caption) e `imageUrl` sirve como respaldo.
+  Cada destino se guarda en `post_channels` con estado `PENDING/SENT/FAILED` (aún sin envío real).
+- Archivos: `POST /api/v1/media` (multipart, campo `file`; JPEG/PNG/WebP/MP4, máx. 50 MB) devuelve
+  `{ id, url, mimeType, sizeBytes }`. `GET /api/v1/media/files/{storageKey}` es público.
+  `MEDIA_PUBLIC_BASE_URL` debe ser accesible por las redes sociales cuando se integren.
 - Categorías de eventos (`category`): `MEETING`, `CULTURAL`, `SPORTS`, `HOLIDAY`, `ACADEMIC`, `OTHER`
   (el front decide etiqueta y color). `allDay` es opcional (por defecto `false`). Fechas en ISO-8601 UTC.
 - CORS permite `http://localhost:3000` por defecto (configurable con `CORS_ALLOWED_ORIGINS`).

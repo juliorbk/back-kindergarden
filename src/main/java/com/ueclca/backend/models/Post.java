@@ -1,10 +1,14 @@
 package com.ueclca.backend.models;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 
+import org.hibernate.annotations.BatchSize;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -15,7 +19,10 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.OrderBy;
 import jakarta.persistence.Table;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -27,6 +34,7 @@ import lombok.Setter;
 @Setter
 @Builder
 @NoArgsConstructor
+@AllArgsConstructor
 public class Post {
 
     @Id
@@ -39,7 +47,7 @@ public class Post {
     @Column(nullable = false, length = 200)
     private String title;
 
-    @Column(nullable = false, length = 1000)
+    @Column(nullable = false, length = 4096)
     private String caption;
 
     @Column(name = "image_url", nullable = false, length = 500)
@@ -56,6 +64,17 @@ public class Post {
     @JoinColumn(name = "author_id", nullable = false)
     private User author;
 
+    @Builder.Default
+    @BatchSize(size = 50)
+    @OneToMany(mappedBy = "post", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<PostChannel> channels = new ArrayList<>();
+
+    @Builder.Default
+    @BatchSize(size = 50)
+    @OrderBy("position ASC")
+    @OneToMany(mappedBy = "post", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<PostMedia> media = new ArrayList<>();
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
@@ -63,18 +82,4 @@ public class Post {
     @UpdateTimestamp
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
-
-    public Post(Long id, String slug, String title, String caption, String imageUrl,
-            PublicationStatus status, Instant publishedAt, User author, Instant createdAt, Instant updatedAt) {
-        this.id = id;
-        this.slug = slug;
-        this.title = title;
-        this.caption = caption;
-        this.imageUrl = imageUrl;
-        this.status = status;
-        this.publishedAt = publishedAt;
-        this.author = author;
-        this.createdAt = createdAt;
-        this.updatedAt = updatedAt;
-    }
 }
