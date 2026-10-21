@@ -95,5 +95,9 @@ docker compose up -d                      # PostgreSQL local (dev)
   `{ id, url, mimeType, sizeBytes }`. `GET /api/v1/media/files/{storageKey}` es público.
   `MEDIA_PUBLIC_BASE_URL` debe ser accesible por las redes sociales cuando se integren.
 - Categorías de eventos (`category`): `MEETING`, `CULTURAL`, `SPORTS`, `HOLIDAY`, `ACADEMIC`, `OTHER`
-  (el front decide etiqueta y color). `allDay` es opcional (por defecto `false`). Fechas en ISO-8601 UTC.
+  (el front decide etiqueta y color). `kind` es `CALENDAR` (por defecto) o `EPHEMERIS`; las efemérides
+  exigen `imageUrl` y `description`. `featured` destaca el evento como aviso en la cartelera.
+  `allDay` es opcional (por defecto `false`). Fechas en ISO-8601 UTC.
+- El listado público de eventos acepta `from`, `to`, `kind` y `featured`; devuelve publicados ordenados
+  por `startsAt` ASC.
 - CORS permite `http://localhost:3000` por defecto (configurable con `CORS_ALLOWED_ORIGINS`).

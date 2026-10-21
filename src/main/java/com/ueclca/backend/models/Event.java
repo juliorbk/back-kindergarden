@@ -1,10 +1,5 @@
 package com.ueclca.backend.models;
 
-import java.time.Instant;
-
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
-
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -16,11 +11,14 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import java.time.Instant;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
 @Entity
 @Table(name = "events")
@@ -47,6 +45,18 @@ public class Event {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
     private EventCategory category;
+
+    @Builder.Default
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private EventKind kind = EventKind.CALENDAR;
+
+    @Column(name = "image_url", length = 500)
+    private String imageUrl;
+
+    @Builder.Default
+    @Column(nullable = false)
+    private boolean featured = false;
 
     @Column(name = "all_day", nullable = false)
     private boolean allDay;

@@ -60,6 +60,9 @@ por `POST /api/v1/media`, máximo 10). La primera imagen de la galería es la po
 Cada destino queda en `post_channels` con estado `PENDING` hasta que existan las integraciones reales.
 `category` de eventos es una de `MEETING`, `CULTURAL`, `SPORTS`, `HOLIDAY`, `ACADEMIC`, `OTHER`
 (el front decide etiqueta y color); `allDay` es opcional y por defecto es `false`.
+Cada evento tiene `kind` (`CALENDAR` o `EPHEMERIS`, por defecto `CALENDAR`), `imageUrl` opcional
+(obligatoria para efemérides) y `featured` para destacarlo como aviso en la cartelera.
+El listado público acepta los filtros opcionales `kind` y `featured`.
 Las fechas (`from`, `to`, `startsAt`, `endsAt`, `publishedAt`) son ISO-8601 UTC (`2026-11-20T13:00:00Z`).
 El listado público de eventos devuelve los publicados que **solapan** con el rango pedido.
 
@@ -84,10 +87,16 @@ curl.exe "http://localhost:8080/api/v1/public/posts"
 curl.exe "http://localhost:8080/api/v1/public/posts/feria-de-ciencias-2026"
 
 # Crear un evento
-curl.exe -X POST http://localhost:8080/api/v1/events -H "Authorization: Bearer <token>" -H "Content-Type: application/json" -d "{\"title\":\"Festival cultural\",\"location\":\"Patio central\",\"category\":\"CULTURAL\",\"allDay\":true,\"startsAt\":\"2026-11-20T00:00:00Z\",\"endsAt\":\"2026-11-20T23:59:00Z\"}"
+curl.exe -X POST http://localhost:8080/api/v1/events -H "Authorization: Bearer <token>" -H "Content-Type: application/json" -d "{\"title\":\"Festival cultural\",\"location\":\"Patio central\",\"category\":\"CULTURAL\",\"kind\":\"CALENDAR\",\"allDay\":true,\"startsAt\":\"2026-11-20T00:00:00Z\",\"endsAt\":\"2026-11-20T23:59:00Z\"}"
+
+# Crear una efeméride destacada (requiere imagen y mensaje)
+curl.exe -X POST http://localhost:8080/api/v1/events -H "Authorization: Bearer <token>" -H "Content-Type: application/json" -d "{\"title\":\"Día de la Tierra\",\"description\":\"Cuidado del planeta\",\"category\":\"CULTURAL\",\"kind\":\"EPHEMERIS\",\"imageUrl\":\"https://example.com/tierra.jpg\",\"featured\":true,\"allDay\":true,\"startsAt\":\"2026-04-22T00:00:00Z\",\"endsAt\":\"2026-04-22T23:59:00Z\"}"
 
 # Eventos públicos de un rango (sin token)
 curl.exe "http://localhost:8080/api/v1/public/events?from=2026-11-01T00:00:00Z&to=2026-11-30T23:59:00Z"
+
+# Efemérides publicadas
+curl.exe "http://localhost:8080/api/v1/public/events?kind=EPHEMERIS"
 ```
 
 Formas de respuesta: los listados paginados devuelven `{ content, page, size, totalElements, totalPages, last }`.

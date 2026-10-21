@@ -24,6 +24,7 @@ import com.ueclca.backend.dtos.EventRequest;
 import com.ueclca.backend.dtos.LoginRequest;
 import com.ueclca.backend.models.Event;
 import com.ueclca.backend.models.EventCategory;
+import com.ueclca.backend.models.EventKind;
 import com.ueclca.backend.models.PublicationStatus;
 import com.ueclca.backend.models.Role;
 import com.ueclca.backend.models.User;
@@ -92,6 +93,36 @@ class EventApiIT extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$.allDay").value(true))
                 .andExpect(jsonPath("$.status").value("DRAFT"))
                 .andExpect(jsonPath("$.publishedAt").doesNotExist());
+    }
+
+    @Test
+    void createEphemerisStoresImageKindAndFeatured() throws Exception {
+        mockMvc.perform(post("/api/v1/events")
+                        .header("Authorization", bearer(editorToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"title":"Día de la Tierra","description":"Cuidado del planeta",
+                                 "category":"CULTURAL","kind":"EPHEMERIS",
+                                 "imageUrl":"https://example.com/tierra.jpg","featured":true,
+                                 "allDay":true,"startsAt":"2026-04-22T00:00:00Z","endsAt":"2026-04-22T23:59:59Z"}
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.kind").value("EPHEMERIS"))
+                .andExpect(jsonPath("$.imageUrl").value("https://example.com/tierra.jpg"))
+                .andExpect(jsonPath("$.featured").value(true));
+    }
+
+    @Test
+    void createEphemerisWithoutImageReturnsBadRequest() throws Exception {
+        mockMvc.perform(post("/api/v1/events")
+                        .header("Authorization", bearer(editorToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"title":"Día de la Tierra","description":"Cuidado del planeta",
+                                 "category":"CULTURAL","kind":"EPHEMERIS","allDay":true,
+                                 "startsAt":"2026-04-22T00:00:00Z","endsAt":"2026-04-22T23:59:59Z"}
+                                """))
+                .andExpect(status().isBadRequest());
     }
 
     @Test
@@ -202,6 +233,31 @@ class EventApiIT extends AbstractIntegrationTest {
     }
 
     @Test
+    void publicListFiltersByKindAndFeatured() throws Exception {
+        Event calendar = createEvent("Evento", "2026-11-01T00:00:00Z", "2026-11-02T00:00:00Z");
+        Event ephemeris = eventService.create(new EventRequest(
+                "Efeméride destacada", "Mensaje", null, EventCategory.CULTURAL,
+                EventKind.EPHEMERIS, "https://example.com/foto.jpg", true, true,
+                Instant.parse("2026-11-03T00:00:00Z"), Instant.parse("2026-11-03T23:59:59Z")),
+                ADMIN_EMAIL);
+        Event otherEphemeris = eventService.create(new EventRequest(
+                "Otra efeméride", "Mensaje", null, EventCategory.CULTURAL,
+                EventKind.EPHEMERIS, "https://example.com/otra.jpg", false, true,
+                Instant.parse("2026-11-04T00:00:00Z"), Instant.parse("2026-11-04T23:59:59Z")),
+                ADMIN_EMAIL);
+        publish(calendar);
+        publish(ephemeris);
+        publish(otherEphemeris);
+
+        mockMvc.perform(get("/api/v1/public/events")
+                        .param("kind", "EPHEMERIS")
+                        .param("featured", "true"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(1)))
+                .andExpect(jsonPath("$[0].title").value("Efeméride destacada"));
+    }
+
+    @Test
     void unpublishRemovesEventFromPublicList() throws Exception {
         Event event = createEvent("Evento", "2026-11-01T00:00:00Z", "2026-11-02T00:00:00Z");
         publish(event);
@@ -239,7 +295,8 @@ class EventApiIT extends AbstractIntegrationTest {
 
     private Event createEvent(String title, String startsAt, String endsAt) {
         return eventService.create(new EventRequest(title, null, "Patio central",
-                EventCategory.ACADEMIC, false, Instant.parse(startsAt), Instant.parse(endsAt)), ADMIN_EMAIL);
+                EventCategory.ACADEMIC, EventKind.CALENDAR, null, null, false,
+                Instant.parse(startsAt), Instant.parse(endsAt)), ADMIN_EMAIL);
     }
 
     private void publish(Event event) {

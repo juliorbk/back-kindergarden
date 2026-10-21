@@ -25,6 +25,7 @@ import com.ueclca.backend.dtos.EventRequest;
 import com.ueclca.backend.dtos.EventResponse;
 import com.ueclca.backend.dtos.PageResponse;
 import com.ueclca.backend.dtos.StatusRequest;
+import com.ueclca.backend.models.EventKind;
 import com.ueclca.backend.models.PublicationStatus;
 import com.ueclca.backend.services.EventService;
 
@@ -42,10 +43,14 @@ public class EventController {
     @GetMapping
     public PageResponse<EventResponse> list(
             @RequestParam(required = false) PublicationStatus status,
+            @RequestParam(required = false) EventKind kind,
+            @RequestParam(required = false) Boolean featured,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to,
             @PageableDefault(size = 20, sort = "startsAt") Pageable pageable) {
-        return PageResponse.from(eventService.search(status, from, to, pageable), EventResponse::from);
+        return PageResponse.from(
+                eventService.search(status, kind, featured, from, to, pageable),
+                EventResponse::from);
     }
 
     @GetMapping("/{id}")

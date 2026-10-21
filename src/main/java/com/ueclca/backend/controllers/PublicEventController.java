@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.ueclca.backend.dtos.EventResponse;
+import com.ueclca.backend.models.EventKind;
 import com.ueclca.backend.services.EventService;
 
 import lombok.RequiredArgsConstructor;
@@ -24,8 +25,10 @@ public class PublicEventController {
     @GetMapping
     public List<EventResponse> list(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to) {
-        return eventService.searchPublished(from, to).stream()
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to,
+            @RequestParam(required = false) EventKind kind,
+            @RequestParam(required = false) Boolean featured) {
+        return eventService.searchPublished(from, to, kind, featured).stream()
                 .map(EventResponse::from)
                 .toList();
     }
