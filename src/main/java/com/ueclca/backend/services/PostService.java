@@ -193,7 +193,11 @@ public class PostService {
     private String resolveCoverUrl(List<MediaAsset> media, String imageUrl) {
         String coverUrl;
         if (!media.isEmpty()) {
-            coverUrl = media.get(0).getUrl();
+            coverUrl = media.stream()
+                    .filter(asset -> asset.getMimeType().startsWith("image/"))
+                    .findFirst()
+                    .orElse(media.get(0))
+                    .getUrl();
         } else if (StringUtils.hasText(imageUrl)) {
             coverUrl = imageUrl.trim();
         } else {

@@ -27,6 +27,7 @@ import org.springframework.data.domain.Sort;
 import com.ueclca.backend.dtos.PostRequest;
 import com.ueclca.backend.exceptions.ResourceNotFoundException;
 import com.ueclca.backend.models.Channel;
+import com.ueclca.backend.models.MediaAsset;
 import com.ueclca.backend.models.Post;
 import com.ueclca.backend.models.PublicationStatus;
 import com.ueclca.backend.models.Role;
@@ -69,6 +70,40 @@ class PostServiceTest {
         assertEquals("feria-de-ciencias-2", post.getSlug());
         assertEquals(PublicationStatus.DRAFT, post.getStatus());
         assertNotNull(post.getAuthor());
+    }
+
+    @Test
+    void createUsesFirstImageAsCoverWhenGalleryStartsWithVideo() {
+        User author = User.builder()
+                .email("editor@ueclca.edu.ve")
+                .fullName("Editor")
+                .role(Role.EDITOR)
+                .enabled(true)
+                .build();
+        MediaAsset video = MediaAsset.builder()
+                .id(1L)
+                .storageKey("video.mp4")
+                .url("http://localhost:8080/api/v1/media/files/video.mp4")
+                .mimeType("video/mp4")
+                .sizeBytes(100)
+                .build();
+        MediaAsset image = MediaAsset.builder()
+                .id(2L)
+                .storageKey("foto.jpg")
+                .url("http://localhost:8080/api/v1/media/files/foto.jpg")
+                .mimeType("image/jpeg")
+                .sizeBytes(100)
+                .build();
+        when(userService.getByEmail("editor@ueclca.edu.ve")).thenReturn(author);
+        when(postRepository.existsBySlug(any(String.class))).thenReturn(false);
+        when(mediaAssetRepository.findAllById(List.of(1L, 2L))).thenReturn(List.of(video, image));
+        when(postRepository.save(any(Post.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Post post = postService.create(new PostRequest(
+                "Galería", "Descripción", null, List.of(1L, 2L), Set.of(Channel.TELEGRAM)),
+                "editor@ueclca.edu.ve");
+
+        assertEquals(image.getUrl(), post.getImageUrl());
     }
 
     @Test
