@@ -30,6 +30,13 @@ spring:
 server:
   port: ${SERVER_PORT:8080}
 
+logging:
+  level:
+    root: INFO
+    com.ueclca.backend: INFO
+  pattern:
+    level: "%5p [%X{requestId:-no-request}] %X{request:-}"
+
 management:
   endpoints:
     web:

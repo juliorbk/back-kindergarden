@@ -19,8 +19,11 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import lombok.extern.slf4j.Slf4j;
+
 @Service
 @Transactional(readOnly = true)
+@Slf4j
 public class EventService {
 
     private final EventRepository eventRepository;
@@ -82,7 +85,10 @@ public class EventService {
             .createdBy(creator)
             .build();
 
-        return eventRepository.save(event);
+        Event saved = eventRepository.save(event);
+        log.info("Evento {} creado por {} (tipo={}, categoría={}, inicia={})",
+            saved.getId(), creatorEmail, kind, request.category(), request.startsAt());
+        return saved;
     }
 
     @Transactional
@@ -105,17 +111,20 @@ public class EventService {
         event.setAllDay(Boolean.TRUE.equals(request.allDay()));
         event.setStartsAt(request.startsAt());
         event.setEndsAt(request.endsAt());
+        log.info("Evento {} actualizado (tipo={}, categoría={})", id, kind, request.category());
         return event;
     }
 
     @Transactional
     public Event changeStatus(Long id, PublicationStatus status) {
         Event event = getById(id);
-        if (event.getStatus() != status) {
+        PublicationStatus previous = event.getStatus();
+        if (previous != status) {
             if (status == PublicationStatus.PUBLISHED && event.getPublishedAt() == null) {
                 event.setPublishedAt(Instant.now());
             }
             event.setStatus(status);
+            log.info("Evento {} cambió de {} a {}", id, previous, status);
         }
         return event;
     }
@@ -123,6 +132,7 @@ public class EventService {
     @Transactional
     public void delete(Long id) {
         eventRepository.delete(getById(id));
+        log.info("Evento {} eliminado", id);
     }
 
     public List<Event> searchPublished(Instant from, Instant to) {

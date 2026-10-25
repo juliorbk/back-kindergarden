@@ -12,6 +12,7 @@ import com.ueclca.backend.repositories.UserRepository;
 import java.util.List;
 import java.util.Locale;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
+@Slf4j
 public class UserService {
 
     private final UserRepository userRepository;
@@ -47,7 +49,7 @@ public class UserService {
             throw new ConflictException("Ya existe un usuario con ese correo");
         }
 
-        return userRepository.save(
+        User saved = userRepository.save(
             User.builder()
                 .email(email)
                 .passwordHash(passwordEncoder.encode(request.password()))
@@ -56,6 +58,8 @@ public class UserService {
                 .enabled(true)
                 .build()
         );
+        log.info("Usuario {} creado con rol {}", saved.getEmail(), saved.getRole());
+        return saved;
     }
 
     @Transactional
@@ -73,6 +77,8 @@ public class UserService {
         user.setFullName(request.fullName().trim());
         user.setRole(request.role());
         user.setEnabled(request.enabled());
+        log.info("Usuario {} actualizado (rol={}, habilitado={})", user.getEmail(),
+            user.getRole(), user.isEnabled());
         return user;
     }
 
@@ -80,16 +86,20 @@ public class UserService {
     public void resetPassword(Long id, PasswordResetRequest request) {
         User user = getById(id);
         user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
+        log.info("Contraseña restablecida para el usuario {}", user.getEmail());
     }
 
     @Transactional
     public void changeOwnPassword(String email, PasswordChangeRequest request) {
         User user = getByEmail(email);
         if (!passwordEncoder.matches(request.currentPassword(), user.getPasswordHash())) {
+            log.warn("Cambio de contraseña rechazado para {}: la contraseña actual no coincide",
+                user.getEmail());
             throw new BadRequestException("La contraseña actual no es correcta");
         }
 
         user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
+        log.info("Contraseña actualizada por el usuario {}", user.getEmail());
     }
 
     private String normalizeEmail(String email) {

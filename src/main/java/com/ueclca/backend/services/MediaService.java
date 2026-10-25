@@ -14,10 +14,12 @@ import com.ueclca.backend.models.User;
 import com.ueclca.backend.repositories.MediaAssetRepository;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
+@Slf4j
 public class MediaService {
 
     private final MediaAssetRepository mediaAssetRepository;
@@ -41,7 +43,10 @@ public class MediaService {
                 .sizeBytes(file.getSize())
                 .uploadedBy(uploader)
                 .build();
-        return mediaAssetRepository.save(asset);
+        MediaAsset saved = mediaAssetRepository.save(asset);
+        log.info("Archivo {} almacenado por {} ({} bytes, tipo={})", saved.getStorageKey(),
+                uploaderEmail, saved.getSizeBytes(), saved.getMimeType());
+        return saved;
     }
 
     public MediaAsset getByStorageKey(String storageKey) {

@@ -31,31 +31,37 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(ResourceNotFoundException.class)
     ProblemDetail handleNotFound(ResourceNotFoundException ex) {
+        logHandled(HttpStatus.NOT_FOUND, ex);
         return problem(HttpStatus.NOT_FOUND, "Recurso no encontrado", ex.getMessage());
     }
 
     @ExceptionHandler(ConflictException.class)
     ProblemDetail handleConflict(ConflictException ex) {
+        logHandled(HttpStatus.CONFLICT, ex);
         return problem(HttpStatus.CONFLICT, "Conflicto", ex.getMessage());
     }
 
     @ExceptionHandler(BadRequestException.class)
     ProblemDetail handleBadRequest(BadRequestException ex) {
+        logHandled(HttpStatus.BAD_REQUEST, ex);
         return problem(HttpStatus.BAD_REQUEST, "Solicitud inválida", ex.getMessage());
     }
 
     @ExceptionHandler(AccessDeniedException.class)
     ProblemDetail handleAccessDenied(AccessDeniedException ex) {
+        logHandled(HttpStatus.FORBIDDEN, ex);
         return problem(HttpStatus.FORBIDDEN, "Acceso denegado", "No tienes permisos para realizar esta acción");
     }
 
     @ExceptionHandler(AuthenticationException.class)
     ProblemDetail handleAuthentication(AuthenticationException ex) {
+        logHandled(HttpStatus.UNAUTHORIZED, ex);
         return problem(HttpStatus.UNAUTHORIZED, "No autorizado", "Credenciales inválidas");
     }
 
     @ExceptionHandler({HttpMessageNotReadableException.class, MethodArgumentTypeMismatchException.class})
     ProblemDetail handleUnreadableBody(Exception ex) {
+        logHandled(HttpStatus.BAD_REQUEST, ex);
         return problem(HttpStatus.BAD_REQUEST, "Solicitud inválida", "La solicitud contiene valores inválidos");
     }
 
@@ -65,6 +71,7 @@ public class GlobalExceptionHandler {
         ex.getConstraintViolations().forEach(violation ->
                 errors.put(violation.getPropertyPath().toString(), violation.getMessage()));
 
+        log.warn("Solicitud rechazada (400): restricciones incumplidas {}", errors);
         ProblemDetail problem = problem(HttpStatus.BAD_REQUEST, "Datos inválidos",
                 "La solicitud contiene valores inválidos");
         problem.setProperty("errors", errors);
@@ -73,29 +80,34 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler({NoResourceFoundException.class, NoHandlerFoundException.class})
     ProblemDetail handleRouteNotFound(Exception ex) {
+        logHandled(HttpStatus.NOT_FOUND, ex);
         return problem(HttpStatus.NOT_FOUND, "Ruta no encontrada", "El recurso solicitado no existe");
     }
 
     @ExceptionHandler(MissingServletRequestParameterException.class)
     ProblemDetail handleMissingParameter(MissingServletRequestParameterException ex) {
+        logHandled(HttpStatus.BAD_REQUEST, ex);
         return problem(HttpStatus.BAD_REQUEST, "Solicitud inválida",
                 "Falta el parámetro obligatorio: " + ex.getParameterName());
     }
 
     @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
     ProblemDetail handleMethodNotSupported(HttpRequestMethodNotSupportedException ex) {
+        logHandled(HttpStatus.METHOD_NOT_ALLOWED, ex);
         return problem(HttpStatus.METHOD_NOT_ALLOWED, "Método no permitido",
                 "El método HTTP no está permitido para esta ruta");
     }
 
     @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
     ProblemDetail handleMediaTypeNotSupported(HttpMediaTypeNotSupportedException ex) {
+        logHandled(HttpStatus.UNSUPPORTED_MEDIA_TYPE, ex);
         return problem(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "Tipo de contenido no soportado",
                 "El tipo de contenido de la solicitud no es compatible");
     }
 
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     ProblemDetail handleMaxUploadSize(MaxUploadSizeExceededException ex) {
+        logHandled(HttpStatus.PAYLOAD_TOO_LARGE, ex);
         return problem(HttpStatus.PAYLOAD_TOO_LARGE, "Archivo demasiado grande",
                 "El archivo supera el tamaño máximo permitido");
     }
@@ -106,12 +118,13 @@ public class GlobalExceptionHandler {
         if (status == null) {
             status = HttpStatus.INTERNAL_SERVER_ERROR;
         }
+        logHandled(status, ex);
         return problem(status, titleFor(status), "La solicitud no pudo procesarse");
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)
     ProblemDetail handleDataIntegrityViolation(DataIntegrityViolationException ex) {
-        log.warn("Conflicto de integridad de datos al procesar la solicitud");
+        logHandled(HttpStatus.CONFLICT, ex.getMostSpecificCause());
         return problem(HttpStatus.CONFLICT, "Conflicto de datos",
                 "La operación entra en conflicto con datos existentes");
     }
@@ -122,6 +135,7 @@ public class GlobalExceptionHandler {
         ex.getBindingResult().getFieldErrors()
                 .forEach(error -> errors.put(error.getField(), error.getDefaultMessage()));
 
+        log.warn("Solicitud rechazada (400): campos inválidos {}", errors);
         ProblemDetail problem = problem(HttpStatus.BAD_REQUEST, "Datos inválidos",
                 "La solicitud contiene campos inválidos");
         problem.setProperty("errors", errors);
@@ -130,8 +144,19 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     ProblemDetail handleUnexpected(Exception ex) {
-        log.error("Error inesperado", ex);
+        logHandled(HttpStatus.INTERNAL_SERVER_ERROR, ex);
         return problem(HttpStatus.INTERNAL_SERVER_ERROR, "Error interno", "Ocurrió un error inesperado");
+    }
+
+    private void logHandled(HttpStatus status, Throwable ex) {
+        if (status.is5xxServerError()) {
+            log.error("Error {} al procesar la solicitud: {}", status.value(), ex.getMessage(), ex);
+        } else if (status == HttpStatus.NOT_FOUND) {
+            log.debug("Solicitud no encontrada: {}", ex.getMessage());
+        } else {
+            log.warn("Solicitud rechazada ({}): {}: {}", status.value(),
+                    ex.getClass().getSimpleName(), ex.getMessage());
+        }
     }
 
     private ProblemDetail problem(HttpStatus status, String title, String detail) {

@@ -2,9 +2,15 @@ spring:
   jpa:
     show-sql: true
 
+logging:
+  level:
+    com.ueclca.backend: DEBUG
+  file:
+    name: ${LOG_FILE:logs/back-kindergarten.log}
+
 app:
   seed:
-    enabled: true
+    enabled: ${SEED_ENABLED:true}
     admin-email: ${SEED_ADMIN_EMAIL:director@ueclca.edu.ve}
     admin-password: ${SEED_ADMIN_PASSWORD:}
     admin-full-name: ${SEED_ADMIN_FULL_NAME:Dirección}

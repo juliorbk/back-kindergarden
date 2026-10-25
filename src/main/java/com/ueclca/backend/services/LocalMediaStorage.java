@@ -20,9 +20,11 @@ import com.ueclca.backend.exceptions.BadRequestException;
 import com.ueclca.backend.exceptions.ResourceNotFoundException;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class LocalMediaStorage implements MediaStorage {
 
     private static final Map<String, String> EXTENSION_BY_CONTENT_TYPE = Map.of(
@@ -58,6 +60,7 @@ public class LocalMediaStorage implements MediaStorage {
                 Files.copy(input, directory.resolve(storageKey), StandardCopyOption.REPLACE_EXISTING);
             }
         } catch (IOException ex) {
+            log.error("No se pudo guardar el archivo {} en {}", storageKey, directory, ex);
             throw new IllegalStateException("No se pudo guardar el archivo", ex);
         }
         return storageKey;
@@ -73,6 +76,7 @@ public class LocalMediaStorage implements MediaStorage {
         try {
             return new UrlResource(file.toUri());
         } catch (MalformedURLException ex) {
+            log.error("No se pudo leer el archivo {}", storageKey, ex);
             throw new IllegalStateException("No se pudo leer el archivo", ex);
         }
     }

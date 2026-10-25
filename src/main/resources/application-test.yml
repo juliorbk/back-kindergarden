@@ -2,6 +2,11 @@ spring:
   jpa:
     show-sql: false
 
+logging:
+  level:
+    root: WARN
+    com.ueclca.backend: INFO
+
 app:
   security:
     jwt:
