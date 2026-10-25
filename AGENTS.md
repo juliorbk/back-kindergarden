@@ -86,14 +86,22 @@ docker compose up -d                      # PostgreSQL local (dev)
 - Panel (JWT con rol `ADMIN` o `EDITOR`): CRUD en `/api/v1/posts` y `/api/v1/events`;
   publicar/despublicar con `PATCH /{id}/status` y body `{ "status": "DRAFT" | "PUBLISHED" }`.
   `publishedAt` se fija en la primera publicación; el slug del post se autogenera del título y no cambia.
+  `POST /api/v1/posts/{id}/channels/{channel}/retry` reintenta un envío `PENDING` o `FAILED`.
 - Posts multi-canal: `POST /api/v1/posts` y `PUT /api/v1/posts/{id}` aceptan
   `{ title?, caption, imageUrl?, mediaIds?, channels }`. `channels` es obligatorio
   (`TELEGRAM`, `FACEBOOK`, `INSTAGRAM`); `mediaIds` referencia archivos subidos (máx. 10) y la primera
   imagen es la portada. `title` es opcional (se deriva del caption) e `imageUrl` sirve como respaldo.
-  Cada destino se guarda en `post_channels` con estado `PENDING/SENT/FAILED` (aún sin envío real).
+  Cada destino se guarda en `post_channels`. Telegram se envía al publicar (portada + caption) y pasa a
+  `SENT` o `FAILED`; Facebook/Instagram quedan en `PENDING` hasta sus integraciones. Un fallo de Telegram
+  no revierte la publicación y se puede reintentar.
 - Archivos: `POST /api/v1/media` (multipart, campo `file`; JPEG/PNG/WebP/MP4, máx. 50 MB) devuelve
   `{ id, url, mimeType, sizeBytes }`. `GET /api/v1/media/files/{storageKey}` es público.
-  `MEDIA_PUBLIC_BASE_URL` debe ser accesible por las redes sociales cuando se integren.
+  Las portadas subidas se envían a Telegram como `multipart/form-data` (no hace falta URL pública);
+  `MEDIA_PUBLIC_BASE_URL` solo debe ser accesible por el navegador. Una `imageUrl` externa sí debe
+  ser accesible por Telegram, que la descarga directamente.
+- Telegram: `TELEGRAM_ENABLED`, `TELEGRAM_BOT_TOKEN` y `TELEGRAM_CHAT_ID`. Si está habilitado, el token y
+  el chat son obligatorios al arrancar. Nunca loggear el token ni la URL completa de la API.
+  Al despublicar no se borra el mensaje; al republicar no se reenvía un canal que ya está `SENT`.
 - Categorías de eventos (`category`): `MEETING`, `CULTURAL`, `SPORTS`, `HOLIDAY`, `ACADEMIC`, `OTHER`
   (el front decide etiqueta y color). `kind` es `CALENDAR` (por defecto) o `EPHEMERIS`; las efemérides
   exigen `imageUrl` y `description`. `featured` destaca el evento como aviso en la cartelera.

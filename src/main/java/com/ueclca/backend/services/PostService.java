@@ -19,6 +19,7 @@ import org.springframework.util.StringUtils;
 
 import com.ueclca.backend.dtos.PostRequest;
 import com.ueclca.backend.exceptions.BadRequestException;
+import com.ueclca.backend.exceptions.ConflictException;
 import com.ueclca.backend.exceptions.ResourceNotFoundException;
 import com.ueclca.backend.models.Channel;
 import com.ueclca.backend.models.ChannelDeliveryStatus;
@@ -33,10 +34,12 @@ import com.ueclca.backend.repositories.PostRepository;
 import com.ueclca.backend.utils.SlugUtils;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
+@Slf4j
 public class PostService {
 
     private static final int COVER_URL_MAX_LENGTH = 500;
@@ -47,6 +50,7 @@ public class PostService {
     private final PostRepository postRepository;
     private final MediaAssetRepository mediaAssetRepository;
     private final UserService userService;
+    private final PostPublishingService postPublishingService;
 
     public Page<Post> search(PublicationStatus status, Pageable pageable) {
         Page<Post> posts = status == null
@@ -83,7 +87,10 @@ public class PostService {
 
         syncChannels(post, request.channels());
         syncMedia(post, media);
-        return postRepository.save(post);
+        Post saved = postRepository.save(post);
+        log.info("Publicación {} creada por {} (canales={})", saved.getId(), authorEmail,
+                request.channels());
+        return saved;
     }
 
     @Transactional
@@ -98,24 +105,56 @@ public class PostService {
         post.setImageUrl(resolveCoverUrl(media, request.imageUrl()));
         syncChannels(post, request.channels());
         syncMedia(post, media);
+        log.info("Publicación {} actualizada (canales={})", id, request.channels());
         return post;
     }
 
     @Transactional
     public Post changeStatus(Long id, PublicationStatus status) {
         Post post = getById(id);
-        if (post.getStatus() != status) {
+        PublicationStatus previous = post.getStatus();
+        if (previous != status) {
             if (status == PublicationStatus.PUBLISHED && post.getPublishedAt() == null) {
                 post.setPublishedAt(Instant.now());
             }
             post.setStatus(status);
+            log.info("Publicación {} cambió de {} a {}", id, previous, status);
         }
+        if (status == PublicationStatus.PUBLISHED) {
+            postPublishingService.publishPending(post);
+        }
+        return post;
+    }
+
+    @Transactional
+    public Post retryChannel(Long id, Channel channel) {
+        Post post = getById(id);
+        PostChannel delivery = post.getChannels().stream()
+                .filter(item -> item.getChannel() == channel)
+                .findFirst()
+                .orElseThrow(() -> new ResourceNotFoundException("Canal no asociado a la publicación"));
+
+        if (post.getStatus() != PublicationStatus.PUBLISHED) {
+            throw new ConflictException("La publicación debe estar publicada para reintentar el envío");
+        }
+        if (delivery.getStatus() == ChannelDeliveryStatus.SENT) {
+            throw new ConflictException("La publicación ya fue enviada a este canal");
+        }
+        if (!postPublishingService.supports(channel)) {
+            throw new BadRequestException(
+                    "La integración con " + channel + " aún no está disponible");
+        }
+
+        log.info("Reintentando el envío de la publicación {} al canal {} (estado previo={})",
+                id, channel, delivery.getStatus());
+        postPublishingService.publish(post, delivery);
         return post;
     }
 
     @Transactional
     public void delete(Long id) {
         postRepository.delete(getById(id));
+        log.info("Publicación {} eliminada", id);
     }
 
     public Page<Post> searchPublished(Pageable pageable) {

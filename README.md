@@ -41,6 +41,7 @@ en producción no se siembra nada.
 | `POST` | `/api/v1/posts` | ADMIN/EDITOR (incluye canales y galería) |
 | `PUT` | `/api/v1/posts/{id}` | ADMIN/EDITOR |
 | `PATCH` | `/api/v1/posts/{id}/status` | ADMIN/EDITOR (publicar/despublicar) |
+| `POST` | `/api/v1/posts/{id}/channels/{channel}/retry` | ADMIN/EDITOR (reintentar envío a un canal) |
 | `DELETE` | `/api/v1/posts/{id}` | ADMIN/EDITOR |
 | `POST` | `/api/v1/media` | ADMIN/EDITOR (multipart, campo `file`) |
 | `GET` | `/api/v1/media/files/{storageKey}` | Público (archivo subido) |
@@ -57,7 +58,10 @@ en producción no se siembra nada.
 `channels`: `TELEGRAM`, `FACEBOOK` o `INSTAGRAM`, y adjuntan una galería con `mediaIds` (IDs devueltos
 por `POST /api/v1/media`, máximo 10). La primera imagen de la galería es la portada (`imageUrl`).
 `title` es opcional (se deriva del contenido) y `imageUrl` se acepta como URL externa de respaldo.
-Cada destino queda en `post_channels` con estado `PENDING` hasta que existan las integraciones reales.
+Cada destino queda en `post_channels`: **Telegram se envía al publicar** y su estado pasa a `SENT`
+(o `FAILED` con el detalle del error); `FACEBOOK` e `INSTAGRAM` quedan en `PENDING` hasta sus
+integraciones. Si Telegram falla, la publicación igual queda `PUBLISHED` en la web y puede
+reintentarse con el endpoint de reintento o volviendo a enviar `PATCH .../status` con `PUBLISHED`.
 `category` de eventos es una de `MEETING`, `CULTURAL`, `SPORTS`, `HOLIDAY`, `ACADEMIC`, `OTHER`
 (el front decide etiqueta y color); `allDay` es opcional y por defecto es `false`.
 Cada evento tiene `kind` (`CALENDAR` o `EPHEMERIS`, por defecto `CALENDAR`), `imageUrl` opcional
@@ -99,6 +103,34 @@ curl.exe "http://localhost:8080/api/v1/public/events?from=2026-11-01T00:00:00Z&t
 curl.exe "http://localhost:8080/api/v1/public/events?kind=EPHEMERIS"
 ```
 
+### Telegram
+
+La publicación a Telegram es opcional y está deshabilitada por defecto.
+
+1. Crear un bot con `@BotFather` y copiar el token.
+2. Agregar el bot como administrador del canal (con permiso para publicar mensajes).
+3. Configurar `.env`:
+   ```properties
+   TELEGRAM_ENABLED=true
+   TELEGRAM_BOT_TOKEN=123456789:token-del-bot
+   TELEGRAM_CHAT_ID=@mi_canal
+   # Para canales privados usa el id numérico, por ejemplo -1001234567890.
+   ```
+4. Las portadas subidas con `mediaIds` se envían a Telegram como `multipart/form-data`, así que
+   `MEDIA_PUBLIC_BASE_URL` solo necesita ser accesible por el navegador (puede ser `localhost`).
+   Si usas una `imageUrl` externa como respaldo, esa URL sí debe ser accesible por Telegram.
+5. Reiniciar la API y publicar un post con `channels:["TELEGRAM"]`.
+
+Comportamiento:
+- Se envía la portada y el `caption` del post (el preview del front muestra lo mismo).
+- Si el `caption` supera los 1024 caracteres, se envía como mensaje de texto con la portada
+  enlazada al final (Telegram limita el caption de fotos/videos a 1024).
+- Un fallo de Telegram no revierte la publicación: el canal queda `FAILED` con `errorMessage`.
+- Al despublicar no se borra el mensaje; al republicar no se reenvía un canal que ya está `SENT`.
+- `POST /api/v1/posts/{id}/channels/TELEGRAM/retry` reintenta un canal `PENDING` o `FAILED`.
+- `TELEGRAM_CONNECT_TIMEOUT_MS` y `TELEGRAM_READ_TIMEOUT_MS` permiten ajustar los timeouts
+  (por defecto 5000 y 10000 ms).
+
 Formas de respuesta: los listados paginados devuelven `{ content, page, size, totalElements, totalPages, last }`.
 Errores con formato `ProblemDetail` (RFC 7807) y mensajes en español, incluidos los `401` y `403`
 emitidos por el filtro de seguridad.
@@ -116,9 +148,12 @@ propio PostgreSQL (no tocan la base de desarrollo).
 
 Ver `.env.example`. Las principales: `DATABASE_URL`, `DATABASE_USER`, `DATABASE_PASSWORD`,
 `JWT_SECRET` (obligatorio, mínimo 32 caracteres), `JWT_ISSUER`, `JWT_EXPIRATION_MINUTES`,
-`CORS_ALLOWED_ORIGINS`, `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASSWORD`, `SEED_ADMIN_FULL_NAME`,
-`MEDIA_STORAGE_PATH` (por defecto `./uploads`), `MEDIA_PUBLIC_BASE_URL` (base de las URLs públicas
-de archivos) y `MEDIA_MAX_FILE_SIZE_BYTES` (50 MB por defecto).
+`CORS_ALLOWED_ORIGINS`, `SEED_ENABLED`, `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASSWORD`,
+`SEED_ADMIN_FULL_NAME`, `MEDIA_STORAGE_PATH` (por defecto `./uploads`), `MEDIA_PUBLIC_BASE_URL`
+(base pública de las URLs de archivos; solo debe ser accesible por el navegador) y
+`MEDIA_MAX_FILE_SIZE_BYTES` (50 MB por defecto). Para Telegram: `TELEGRAM_ENABLED`,
+`TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` (y opcionalmente `TELEGRAM_API_BASE_URL`,
+`TELEGRAM_CONNECT_TIMEOUT_MS`, `TELEGRAM_READ_TIMEOUT_MS`).
 En producción no se deben usar los valores de ejemplo de `.env.example`.
 
 ## Estructura

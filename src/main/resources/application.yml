@@ -50,3 +50,10 @@ app:
     storage-path: ${MEDIA_STORAGE_PATH:./uploads}
     public-base-url: ${MEDIA_PUBLIC_BASE_URL:http://localhost:8080}
     max-file-size-bytes: ${MEDIA_MAX_FILE_SIZE_BYTES:52428800}
+  telegram:
+    enabled: ${TELEGRAM_ENABLED:false}
+    bot-token: ${TELEGRAM_BOT_TOKEN:}
+    chat-id: ${TELEGRAM_CHAT_ID:}
+    api-base-url: ${TELEGRAM_API_BASE_URL:https://api.telegram.org}
+    connect-timeout-ms: ${TELEGRAM_CONNECT_TIMEOUT_MS:5000}
+    read-timeout-ms: ${TELEGRAM_READ_TIMEOUT_MS:10000}

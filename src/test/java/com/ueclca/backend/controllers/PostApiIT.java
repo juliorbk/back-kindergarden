@@ -248,7 +248,7 @@ class PostApiIT extends AbstractIntegrationTest {
     }
 
     @Test
-    void publishingLeavesChannelDeliveriesPending() throws Exception {
+    void publishingMarksTelegramAsFailedWhenIntegrationIsDisabled() throws Exception {
         Post post = createDraft("Con canales");
         postService.changeStatus(post.getId(), PublicationStatus.PUBLISHED);
 
@@ -257,7 +257,8 @@ class PostApiIT extends AbstractIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("PUBLISHED"))
                 .andExpect(jsonPath("$.channels[0].channel").value("TELEGRAM"))
-                .andExpect(jsonPath("$.channels[0].status").value("PENDING"));
+                .andExpect(jsonPath("$.channels[0].status").value("FAILED"))
+                .andExpect(jsonPath("$.channels[0].errorMessage").exists());
     }
 
     @Test

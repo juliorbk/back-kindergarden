@@ -23,6 +23,7 @@ import com.ueclca.backend.dtos.PageResponse;
 import com.ueclca.backend.dtos.PostRequest;
 import com.ueclca.backend.dtos.PostResponse;
 import com.ueclca.backend.dtos.StatusRequest;
+import com.ueclca.backend.models.Channel;
 import com.ueclca.backend.models.PublicationStatus;
 import com.ueclca.backend.services.PostService;
 
@@ -63,6 +64,11 @@ public class PostController {
     @PatchMapping("/{id}/status")
     public PostResponse changeStatus(@PathVariable Long id, @Valid @RequestBody StatusRequest request) {
         return PostResponse.from(postService.changeStatus(id, request.status()));
+    }
+
+    @PostMapping("/{id}/channels/{channel}/retry")
+    public PostResponse retryChannel(@PathVariable Long id, @PathVariable Channel channel) {
+        return PostResponse.from(postService.retryChannel(id, channel));
     }
 
     @DeleteMapping("/{id}")
