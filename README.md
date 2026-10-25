@@ -19,7 +19,7 @@ página del colegio y la publicación en canales (Telegram, Facebook, Instagram)
 
 ```powershell
 Copy-Item .env.example .env     # Ajustar JWT_SECRET y SEED_ADMIN_PASSWORD
-docker compose up -d            # Levanta PostgreSQL en localhost:5433
+docker compose up -d            # Levanta PostgreSQL en localhost:5432
 .\mvnw.cmd spring-boot:run      # API en http://localhost:8080
 ```
 
