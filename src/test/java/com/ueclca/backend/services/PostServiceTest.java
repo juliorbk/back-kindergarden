@@ -27,7 +27,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 
 import com.ueclca.backend.dtos.PostRequest;
-import com.ueclca.backend.exceptions.BadRequestException;
 import com.ueclca.backend.exceptions.ConflictException;
 import com.ueclca.backend.exceptions.ResourceNotFoundException;
 import com.ueclca.backend.models.Channel;
@@ -181,20 +180,15 @@ class PostServiceTest {
     }
 
     @Test
-    void retryChannelRejectsUnsupportedChannel() {
-        Post post = postWithChannel(PublicationStatus.PUBLISHED, Channel.FACEBOOK, ChannelDeliveryStatus.FAILED);
-        when(postRepository.findById(1L)).thenReturn(Optional.of(post));
-        when(postPublishingService.supports(Channel.FACEBOOK)).thenReturn(false);
-
-        assertThrows(BadRequestException.class, () -> postService.retryChannel(1L, Channel.FACEBOOK));
-    }
-
-    @Test
-    void retryChannelRejectsUnknownChannel() {
-        Post post = postWithChannel(PublicationStatus.PUBLISHED, Channel.TELEGRAM, ChannelDeliveryStatus.FAILED);
+    void retryChannelRejectsChannelNotAssociatedWithPost() {
+        Post post = Post.builder()
+                .id(1L)
+                .status(PublicationStatus.PUBLISHED)
+                .channels(new ArrayList<>())
+                .build();
         when(postRepository.findById(1L)).thenReturn(Optional.of(post));
 
-        assertThrows(ResourceNotFoundException.class, () -> postService.retryChannel(1L, Channel.FACEBOOK));
+        assertThrows(ResourceNotFoundException.class, () -> postService.retryChannel(1L, Channel.TELEGRAM));
     }
 
     @Test

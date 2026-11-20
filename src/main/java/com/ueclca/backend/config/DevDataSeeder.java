@@ -97,7 +97,7 @@ public class DevDataSeeder implements ApplicationRunner {
                         + "¡Gracias a las familias por acompañarnos!",
                 "https://picsum.photos/seed/feria-ciencias/800/600",
                 List.of(),
-                Set.of(Channel.TELEGRAM, Channel.FACEBOOK)), authorEmail);
+                Set.of(Channel.TELEGRAM)), authorEmail);
         postService.changeStatus(feria.getId(), PublicationStatus.PUBLISHED);
 
         Post inscripciones = postService.create(new PostRequest(
@@ -106,7 +106,7 @@ public class DevDataSeeder implements ApplicationRunner {
                         + "Consulte los recaudos en la secretaría del colegio.",
                 "https://picsum.photos/seed/inscripciones/800/600",
                 List.of(),
-                Set.of(Channel.TELEGRAM, Channel.FACEBOOK, Channel.INSTAGRAM)), authorEmail);
+                Set.of(Channel.TELEGRAM)), authorEmail);
         postService.changeStatus(inscripciones.getId(), PublicationStatus.PUBLISHED);
 
         postService.create(new PostRequest(

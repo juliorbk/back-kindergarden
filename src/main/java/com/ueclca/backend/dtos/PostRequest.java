@@ -6,7 +6,7 @@ import java.util.Set;
 import com.ueclca.backend.models.Channel;
 
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
@@ -25,6 +25,6 @@ public record PostRequest(
         @Size(max = 10, message = "La publicación no puede tener más de 10 medios")
         List<Long> mediaIds,
 
-        @NotEmpty(message = "Selecciona al menos un canal")
+        @NotNull(message = "Indica los canales externos (puede quedar vacío para publicar solo en la web)")
         Set<Channel> channels) {
 }

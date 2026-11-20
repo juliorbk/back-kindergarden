@@ -238,13 +238,20 @@ class TelegramPublishingIT extends AbstractIntegrationTest {
     }
 
     @Test
-    void retryRejectsUnsupportedChannel() throws Exception {
-        Post post = createDraft("Hola", Set.of(Channel.FACEBOOK));
-        postService.changeStatus(post.getId(), PublicationStatus.PUBLISHED);
+    void publishesPostOnWebsiteWithoutSendingToTelegramWhenNoExternalChannelSelected() throws Exception {
+        Post post = createDraft("Solo en la web", Set.of());
 
-        mockMvc.perform(post("/api/v1/posts/" + post.getId() + "/channels/FACEBOOK/retry")
-                        .header("Authorization", bearer(adminToken)))
-                .andExpect(status().isBadRequest());
+        mockMvc.perform(patch("/api/v1/posts/" + post.getId() + "/status")
+                        .header("Authorization", bearer(adminToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"status\":\"PUBLISHED\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("PUBLISHED"))
+                .andExpect(jsonPath("$.channels", hasSize(0)));
+
+        mockMvc.perform(get("/api/v1/public/posts/solo-en-la-web"))
+                .andExpect(status().isOk());
+        assertEquals(0, REQUEST_COUNT.get());
     }
 
     private Post createDraft(String caption, Set<Channel> channels) {

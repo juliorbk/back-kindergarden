@@ -1,5 +1,5 @@
 // Esquema de base de datos — back-kindergarten (UEC Luisa Cáceres)
-// Generado a partir de las migraciones Flyway V1–V3 y las entidades JPA.
+// Generado a partir de las migraciones Flyway V1–V7 y las entidades JPA.
 
 Enum role {
   ADMIN
@@ -73,4 +73,156 @@ Table events {
   }
 
   Note: 'Eventos institucionales. Restricción ck_events_period: ends_at >= starts_at.'
+}
+
+Enum shift {
+  MORNING
+  AFTERNOON
+}
+
+Enum group_name {
+  MATERNAL
+  GROUP_I
+  GROUP_II
+  GROUP_III
+}
+
+Enum student_sex {
+  FEMALE
+  MALE
+}
+
+Enum previous_schooling {
+  HOME
+  SAME_SCHOOL
+  OTHER_SCHOOL
+  DAYCARE
+  OTHER
+}
+
+Enum responsible_type {
+  MOTHER
+  FATHER
+  OTHER
+}
+
+Enum pickup_type {
+  MOTHER
+  FATHER
+  BOTH
+  TRANSPORT
+  OTHER
+}
+
+Enum enrollment_document_type {
+  BIRTH_CERTIFICATE
+  VACCINE_CERTIFICATE
+  MOTHER_ID
+  FATHER_ID
+  STUDENT_PHOTO
+}
+
+Table students {
+  id                     bigserial    [pk, increment]
+  first_names            varchar(150) [not null]
+  last_names             varchar(150) [not null]
+  birth_date             date         [not null]
+  birth_place            varchar(150)
+  nationality            varchar(80)  [not null, default: 'Venezolana']
+  sex                    student_sex  [not null]
+  height_cm              numeric(5,1)
+  weight_kg              numeric(5,1)
+  school_registry_number varchar(50)
+  phone                  varchar(30)
+  address                varchar(500)
+  created_at             timestamptz  [not null, default: `NOW()`]
+  updated_at             timestamptz  [not null, default: `NOW()`]
+
+  indexes {
+    (first_names, last_names, birth_date) [unique, name: 'uk_students_identity']
+    (last_names, first_names) [name: 'idx_students_name']
+  }
+
+  Note: 'Alumnos. La identidad se reutiliza entre años escolares.'
+}
+
+Table guardians {
+  id           bigserial   [pk, increment]
+  student_id   bigint      [not null, ref: > students.id]
+  relationship varchar(20) [not null, note: 'MOTHER o FATHER']
+  full_name    varchar(150) [not null]
+  national_id  varchar(20)
+  address      varchar(500)
+  birth_date   date
+  occupation   varchar(150)
+  works        boolean     [not null, default: false]
+  employer     varchar(150)
+  email        varchar(255)
+  home_phone   varchar(30)
+  mobile_phone varchar(30)
+  office_phone varchar(30)
+  created_at   timestamptz [not null, default: `NOW()`]
+  updated_at   timestamptz [not null, default: `NOW()`]
+
+  indexes {
+    (student_id, relationship) [unique, name: 'uk_guardians_student_relationship']
+    (student_id) [name: 'idx_guardians_student']
+  }
+}
+
+Table enrollments {
+  id                        bigserial    [pk, increment]
+  student_id                bigint       [not null, ref: > students.id]
+  school_year               varchar(9)   [not null]
+  shift                     shift        [not null]
+  group_name                group_name   [not null]
+  enrollment_date           date         [not null]
+  previous_schooling        previous_schooling [not null]
+  previous_institution      varchar(200)
+  responsible_type          responsible_type [not null]
+  responsible_other         varchar(150)
+  lives_with_mother         boolean      [not null, default: false]
+  lives_with_father         boolean      [not null, default: false]
+  pickup_type               pickup_type  [not null]
+  pickup_other              varchar(150)
+  illness                   varchar(1000)
+  allergies                 varchar(1000)
+  operated                  boolean      [not null, default: false]
+  operation_details         varchar(500)
+  psychological_treatment   boolean      [not null, default: false]
+  psychological_details     varchar(500)
+  photo_data_url            text         [note: 'Foto comprimida como data URL; opcional']
+  commitment_accepted       boolean      [not null]
+  commitment_signature_name varchar(150) [not null]
+  commitment_signature_date date         [not null]
+  commitment_signature_data text
+  created_by                bigint       [ref: > users.id, note: 'Nulo en el formulario público']
+  created_at                timestamptz  [not null, default: `NOW()`]
+  updated_at                timestamptz  [not null, default: `NOW()`]
+
+  indexes {
+    (student_id, school_year) [unique, name: 'uk_enrollments_student_year']
+    (school_year) [name: 'idx_enrollments_school_year']
+    (school_year, group_name) [name: 'idx_enrollments_group']
+    (created_at) [name: 'idx_enrollments_created_at']
+  }
+
+  Note: 'Una inscripción por alumno y año escolar. Incluye el acta y la firma.'
+}
+
+Table enrollment_documents {
+  id            bigserial              [pk, increment]
+  enrollment_id bigint                 [not null, ref: > enrollments.id]
+  document_type enrollment_document_type [not null]
+  presented     boolean                [not null, default: false]
+  file_name     varchar(255)
+  storage_key   varchar(255)
+  mime_type     varchar(100)
+  size_bytes    bigint
+  created_at    timestamptz            [not null, default: `NOW()`]
+
+  indexes {
+    (enrollment_id, document_type) [unique, name: 'uk_enrollment_documents_type']
+    (enrollment_id) [name: 'idx_enrollment_documents_enrollment']
+  }
 }

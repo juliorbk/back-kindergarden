@@ -19,5 +19,7 @@ app:
     storage-path: ${java.io.tmpdir}/back-kindergarten-test-media
     public-base-url: http://localhost:8080
     max-file-size-bytes: 52428800
+  enrollment:
+    max-document-size-bytes: 10485760
   telegram:
     enabled: false

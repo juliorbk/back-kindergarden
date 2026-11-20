@@ -87,13 +87,18 @@ docker compose up -d                      # PostgreSQL local (dev)
   publicar/despublicar con `PATCH /{id}/status` y body `{ "status": "DRAFT" | "PUBLISHED" }`.
   `publishedAt` se fija en la primera publicación; el slug del post se autogenera del título y no cambia.
   `POST /api/v1/posts/{id}/channels/{channel}/retry` reintenta un envío `PENDING` o `FAILED`.
-- Posts multi-canal: `POST /api/v1/posts` y `PUT /api/v1/posts/{id}` aceptan
-  `{ title?, caption, imageUrl?, mediaIds?, channels }`. `channels` es obligatorio
-  (`TELEGRAM`, `FACEBOOK`, `INSTAGRAM`); `mediaIds` referencia archivos subidos (máx. 10) y la primera
-  imagen es la portada. `title` es opcional (se deriva del caption) e `imageUrl` sirve como respaldo.
-  Cada destino se guarda en `post_channels`. Telegram se envía al publicar (portada + caption) y pasa a
-  `SENT` o `FAILED`; Facebook/Instagram quedan en `PENDING` hasta sus integraciones. Un fallo de Telegram
-  no revierte la publicación y se puede reintentar.
+- Inscripciones: `POST /api/v1/public/enrollments` (público) crea la planilla y
+  `POST /api/v1/public/enrollments/documents` (público, multipart `file`) sube un recaudo.
+  `GET/PUT/DELETE /api/v1/enrollments` y `GET /{id}/documents/{documentType}` exigen rol `ADMIN`.
+  Modelo normalizado: `students`, `guardians`, `enrollments`, `enrollment_documents`.
+  La edad se valida contra el grupo y el año escolar; una inscripción única por alumno y año.
+- Posts para la web y Telegram: `POST /api/v1/posts` y `PUT /api/v1/posts/{id}` aceptan
+  `{ title?, caption, imageUrl?, mediaIds?, channels }`. `channels` es obligatorio y solo admite
+  `TELEGRAM`; puede ser una lista vacía para publicar solo en la web. `mediaIds` referencia archivos
+  subidos (máx. 10) y la primera imagen es la portada. `title` es opcional (se deriva del caption) e
+  `imageUrl` sirve como respaldo. `PUBLISHED` publica en la web; si se seleccionó Telegram, se envía
+  al publicar (portada + caption) y el resultado queda `SENT` o `FAILED`. Un fallo de Telegram no
+  revierte la publicación y se puede reintentar.
 - Archivos: `POST /api/v1/media` (multipart, campo `file`; JPEG/PNG/WebP/MP4, máx. 50 MB) devuelve
   `{ id, url, mimeType, sizeBytes }`. `GET /api/v1/media/files/{storageKey}` es público.
   Las portadas subidas se envían a Telegram como `multipart/form-data` (no hace falta URL pública);

@@ -89,11 +89,10 @@ class PostPublishingServiceTest {
     }
 
     @Test
-    void channelWithoutPublisherRemainsPending() {
+    void telegramWithoutPublisherRemainsPending() {
         Post post = post();
-        PostChannel delivery = delivery(post, Channel.FACEBOOK, ChannelDeliveryStatus.PENDING);
-        when(publisher.channel()).thenReturn(Channel.TELEGRAM);
-        PostPublishingService service = new PostPublishingService(List.of(publisher));
+        PostChannel delivery = delivery(post, Channel.TELEGRAM, ChannelDeliveryStatus.PENDING);
+        PostPublishingService service = new PostPublishingService(List.of());
 
         service.publishPending(post);
 
@@ -122,7 +121,7 @@ class PostPublishingServiceTest {
         PostPublishingService service = new PostPublishingService(List.of(publisher));
 
         assertTrue(service.supports(Channel.TELEGRAM));
-        assertFalse(service.supports(Channel.FACEBOOK));
+        assertFalse(new PostPublishingService(List.of()).supports(Channel.TELEGRAM));
     }
 
     private Post post() {

@@ -1,7 +1,7 @@
 # back-kindergarten
 
 API backend del panel administrativo de la UEC Luisa Cáceres. Es el CMS que alimenta la
-página del colegio y la publicación en canales (Telegram, Facebook, Instagram).
+página del colegio y permite publicar anuncios también en Telegram.
 
 ## Stack
 
@@ -34,6 +34,13 @@ en producción no se siembra nada.
 |---|---|---|
 | `POST` | `/api/v1/auth/login` | Público |
 | `GET` | `/api/v1/auth/me` | Requiere `Authorization: Bearer <token>` |
+| `POST` | `/api/v1/public/enrollments` | Público (crear inscripción) |
+| `POST` | `/api/v1/public/enrollments/documents` | Público (multipart, campo `file`) |
+| `GET` | `/api/v1/enrollments?schoolYear=&group=&q=&page=&size=` | ADMIN |
+| `GET` | `/api/v1/enrollments/{id}` | ADMIN |
+| `PUT` | `/api/v1/enrollments/{id}` | ADMIN |
+| `DELETE` | `/api/v1/enrollments/{id}` | ADMIN |
+| `GET` | `/api/v1/enrollments/{id}/documents/{documentType}` | ADMIN (descarga adjunto) |
 | `GET` | `/api/v1/public/posts?page=&size=` | Público (solo publicados, `publishedAt` DESC) |
 | `GET` | `/api/v1/public/posts/{slug}` | Público (404 si el post no está publicado) |
 | `GET` | `/api/v1/posts?status=&page=&size=` | ADMIN/EDITOR (todos los estados) |
@@ -54,13 +61,14 @@ en producción no se siembra nada.
 | `DELETE` | `/api/v1/events/{id}` | ADMIN/EDITOR |
 | `GET` | `/actuator/health` | Público |
 
-`status` es `DRAFT` o `PUBLISHED` (enum `PublicationStatus`). Los posts declaran sus destinos en
-`channels`: `TELEGRAM`, `FACEBOOK` o `INSTAGRAM`, y adjuntan una galería con `mediaIds` (IDs devueltos
+`status` es `DRAFT` o `PUBLISHED` (enum `PublicationStatus`); al publicar, el post queda visible
+en la web. Los posts pueden enviarse además a Telegram con `channels:["TELEGRAM"]` o dejar
+`channels:[]` para publicar solo en la web. Pueden adjuntar una galería con `mediaIds` (IDs devueltos
 por `POST /api/v1/media`, máximo 10). La primera imagen de la galería es la portada (`imageUrl`).
 `title` es opcional (se deriva del contenido) y `imageUrl` se acepta como URL externa de respaldo.
-Cada destino queda en `post_channels`: **Telegram se envía al publicar** y su estado pasa a `SENT`
-(o `FAILED` con el detalle del error); `FACEBOOK` e `INSTAGRAM` quedan en `PENDING` hasta sus
-integraciones. Si Telegram falla, la publicación igual queda `PUBLISHED` en la web y puede
+El envío a Telegram se registra en `post_channels`: **Telegram se envía al publicar** y su estado
+pasa a `SENT` (o `FAILED` con el detalle del error). Si Telegram falla, la publicación igual queda
+`PUBLISHED` en la web y puede
 reintentarse con el endpoint de reintento o volviendo a enviar `PATCH .../status` con `PUBLISHED`.
 `category` de eventos es una de `MEETING`, `CULTURAL`, `SPORTS`, `HOLIDAY`, `ACADEMIC`, `OTHER`
 (el front decide etiqueta y color); `allDay` es opcional y por defecto es `false`.
@@ -70,18 +78,37 @@ El listado público acepta los filtros opcionales `kind` y `featured`.
 Las fechas (`from`, `to`, `startsAt`, `endsAt`, `publishedAt`) son ISO-8601 UTC (`2026-11-20T13:00:00Z`).
 El listado público de eventos devuelve los publicados que **solapan** con el rango pedido.
 
+### Inscripciones
+
+El formulario público puede crear una inscripción sin autenticarse y adjuntar documentos
+(PDF, JPG, PNG o WebP, máximo 10 MB por archivo). La consulta, edición, eliminación y
+descarga de adjuntos queda restringida al rol `ADMIN`.
+
+- Una inscripción pertenece a un alumno (`students`) y a un año escolar; la restricción
+  `uk_enrollments_student_year` impide duplicados.
+- La madre y el padre se guardan en `guardians` con sus propios campos simétricos.
+- Los cinco recaudos viven en `enrollment_documents` con su tipo
+  (`BIRTH_CERTIFICATE`, `VACCINE_CERTIFICATE`, `MOTHER_ID`, `FATHER_ID`, `STUDENT_PHOTO`).
+- El backend valida edad/grupo, cédula venezolana, teléfonos, fechas y campos
+  condicionales (operación, tratamiento psicológico, otros responsables).
+- La foto se recibe como data URL comprimida por el navegador y la firma como imagen
+  opcional; el nombre y la fecha de la firma son obligatorios.
+
 ### Ejemplos
 
 ```powershell
 # Login y token (usar la contraseña definida en SEED_ADMIN_PASSWORD)
 curl.exe -X POST http://localhost:8080/api/v1/auth/login -H "Content-Type: application/json" -d "{\"email\":\"director@ueclca.edu.ve\",\"password\":\"<tu-contraseña>\"}"
 
-# Crear un post (borrador) con canales e imagen externa
-curl.exe -X POST http://localhost:8080/api/v1/posts -H "Authorization: Bearer <token>" -H "Content-Type: application/json" -d "{\"title\":\"Feria de Ciencias 2026\",\"caption\":\"Los estudiantes presentaron sus proyectos.\",\"imageUrl\":\"https://example.com/feria.jpg\",\"channels\":[\"TELEGRAM\",\"FACEBOOK\"]}"
+# Crear un post (borrador) para web y Telegram con imagen externa
+curl.exe -X POST http://localhost:8080/api/v1/posts -H "Authorization: Bearer <token>" -H "Content-Type: application/json" -d "{\"title\":\"Feria de Ciencias 2026\",\"caption\":\"Los estudiantes presentaron sus proyectos.\",\"imageUrl\":\"https://example.com/feria.jpg\",\"channels\":[\"TELEGRAM\"]}"
 
 # Subir una imagen y usar su id en la galería del post
 curl.exe -X POST http://localhost:8080/api/v1/media -H "Authorization: Bearer <token>" -F "file=@C:\ruta\foto.png"
-curl.exe -X POST http://localhost:8080/api/v1/posts -H "Authorization: Bearer <token>" -H "Content-Type: application/json" -d "{\"caption\":\"Anuncio con galería.\",\"mediaIds\":[1,2],\"channels\":[\"TELEGRAM\",\"INSTAGRAM\"]}"
+curl.exe -X POST http://localhost:8080/api/v1/posts -H "Authorization: Bearer <token>" -H "Content-Type: application/json" -d "{\"caption\":\"Anuncio con galería.\",\"mediaIds\":[1,2],\"channels\":[\"TELEGRAM\"]}"
+
+# Crear un post solo para la web
+curl.exe -X POST http://localhost:8080/api/v1/posts -H "Authorization: Bearer <token>" -H "Content-Type: application/json" -d "{\"caption\":\"Aviso para la página del colegio.\",\"imageUrl\":\"https://example.com/aviso.jpg\",\"channels\":[]}"
 
 # Publicar / despublicar
 curl.exe -X PATCH http://localhost:8080/api/v1/posts/1/status -H "Authorization: Bearer <token>" -H "Content-Type: application/json" -d "{\"status\":\"PUBLISHED\"}"

@@ -1,7 +1,6 @@
 package com.ueclca.backend.controllers;
 
 import static org.hamcrest.Matchers.hasSize;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -26,7 +25,6 @@ import org.springframework.test.web.servlet.MockMvc;
 import com.ueclca.backend.AbstractIntegrationTest;
 import com.ueclca.backend.dtos.LoginRequest;
 import com.ueclca.backend.dtos.PostRequest;
-import com.ueclca.backend.exceptions.BadRequestException;
 import com.ueclca.backend.models.Channel;
 import com.ueclca.backend.models.MediaAsset;
 import com.ueclca.backend.models.Post;
@@ -146,20 +144,45 @@ class PostApiIT extends AbstractIntegrationTest {
                                 """))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errors.caption").exists())
-                .andExpect(jsonPath("$.errors.imageUrl").exists())
-                .andExpect(jsonPath("$.errors.channels").exists());
+                .andExpect(jsonPath("$.errors.imageUrl").exists());
     }
 
     @Test
-    void createWithoutChannelsReturnsBadRequest() throws Exception {
+    void createWithDiscontinuedChannelReturnsBadRequest() throws Exception {
         mockMvc.perform(post("/api/v1/posts")
                         .header("Authorization", bearer(adminToken))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"title":"Sin canales","caption":"Descripción","imageUrl":"%s","channels":[]}
+                                {"title":"Canal retirado","caption":"Descripción","imageUrl":"%s",
+                                 "channels":["FACEBOOK"]}
                                 """.formatted(IMAGE_URL)))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.errors.channels").exists());
+                .andExpect(jsonPath("$.detail").value("La solicitud contiene valores inválidos"));
+    }
+
+    @Test
+    void createAndPublishWithoutExternalChannelsPublishesOnlyOnWebsite() throws Exception {
+        mockMvc.perform(post("/api/v1/posts")
+                        .header("Authorization", bearer(adminToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"title":"Solo web","caption":"Anuncio web","imageUrl":"%s","channels":[]}
+                                """.formatted(IMAGE_URL)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.channels", hasSize(0)));
+        long postId = postRepository.findBySlug("solo-web").orElseThrow().getId();
+
+        mockMvc.perform(patch("/api/v1/posts/" + postId + "/status")
+                        .header("Authorization", bearer(adminToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"status\":\"PUBLISHED\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("PUBLISHED"))
+                .andExpect(jsonPath("$.channels", hasSize(0)));
+
+        mockMvc.perform(get("/api/v1/public/posts/solo-web"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.title").value("Solo web"));
     }
 
     @Test
@@ -198,14 +221,14 @@ class PostApiIT extends AbstractIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"title":"Con galería","caption":"Descripción","mediaIds":[%d,%d],
-                                 "channels":["TELEGRAM","INSTAGRAM"]}
+                                 "channels":["TELEGRAM"]}
                                 """.formatted(first.getId(), second.getId())))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.imageUrl").value(first.getUrl()))
                 .andExpect(jsonPath("$.media", hasSize(2)))
                 .andExpect(jsonPath("$.media[0].id").value(first.getId()))
                 .andExpect(jsonPath("$.media[1].id").value(second.getId()))
-                .andExpect(jsonPath("$.channels", hasSize(2)));
+                .andExpect(jsonPath("$.channels", hasSize(1)));
     }
 
     @Test
@@ -236,18 +259,6 @@ class PostApiIT extends AbstractIntegrationTest {
     }
 
     @Test
-    void instagramCaptionLimitIsEnforced() {
-        PostRequest request = new PostRequest(
-                "Título",
-                "a".repeat(2201),
-                IMAGE_URL,
-                List.of(),
-                Set.of(Channel.INSTAGRAM));
-
-        assertThrows(BadRequestException.class, () -> postService.create(request, ADMIN_EMAIL));
-    }
-
-    @Test
     void publishingMarksTelegramAsFailedWhenIntegrationIsDisabled() throws Exception {
         Post post = createDraft("Con canales");
         postService.changeStatus(post.getId(), PublicationStatus.PUBLISHED);
@@ -271,12 +282,12 @@ class PostApiIT extends AbstractIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"title":"Actualizable","caption":"Nueva descripción","mediaIds":[%d],
-                                 "channels":["FACEBOOK","INSTAGRAM"]}
+                                 "channels":[]}
                                 """.formatted(asset.getId())))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.imageUrl").value(asset.getUrl()))
                 .andExpect(jsonPath("$.media", hasSize(1)))
-                .andExpect(jsonPath("$.channels", hasSize(2)));
+                .andExpect(jsonPath("$.channels", hasSize(0)));
     }
 
     @Test

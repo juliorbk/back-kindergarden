@@ -43,7 +43,6 @@ import lombok.extern.slf4j.Slf4j;
 public class PostService {
 
     private static final int COVER_URL_MAX_LENGTH = 500;
-    private static final int INSTAGRAM_CAPTION_MAX_LENGTH = 2200;
     private static final int DERIVED_TITLE_MAX_LENGTH = 60;
     private static final int MAX_MEDIA_ITEMS = 10;
 
@@ -72,7 +71,6 @@ public class PostService {
         User author = userService.getByEmail(authorEmail);
         String caption = request.caption().trim();
         String title = resolveTitle(request.title(), caption);
-        validateChannelLimits(request.channels(), caption);
         List<MediaAsset> media = loadMedia(request.mediaIds());
         String coverUrl = resolveCoverUrl(media, request.imageUrl());
 
@@ -97,7 +95,6 @@ public class PostService {
     public Post update(Long id, PostRequest request) {
         Post post = getById(id);
         String caption = request.caption().trim();
-        validateChannelLimits(request.channels(), caption);
         List<MediaAsset> media = loadMedia(request.mediaIds());
 
         post.setTitle(resolveTitle(request.title(), caption));
@@ -195,13 +192,6 @@ public class PostService {
                 ? normalized.substring(0, cut)
                 : normalized.substring(0, DERIVED_TITLE_MAX_LENGTH);
         return derived.trim();
-    }
-
-    private void validateChannelLimits(Set<Channel> channels, String caption) {
-        if (channels.contains(Channel.INSTAGRAM) && caption.length() > INSTAGRAM_CAPTION_MAX_LENGTH) {
-            throw new BadRequestException(
-                    "Instagram permite un máximo de " + INSTAGRAM_CAPTION_MAX_LENGTH + " caracteres");
-        }
     }
 
     private List<MediaAsset> loadMedia(List<Long> mediaIds) {
